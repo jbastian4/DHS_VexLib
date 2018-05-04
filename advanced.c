@@ -23,6 +23,7 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
+#define lEnc_Ki 0
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.45
@@ -52,41 +53,84 @@ int countsToInches(float value) //converts drive encoder counts into inches
 }
 
 //Encoder PID Values
-int  lEncRequestedValue;
-int  rEncRequestedValue;
-int  gyroRequestedValue;
 
-float lEncD;
-float lEncP;
-float lastlEncError;
-float lEncDF;
+int   lEncRequestedValue;
+float lEncErr;//proportional error
+float lEncPrevErr; //prop error from previous loop
+float lEncInt;//integral error
+float lEncDer;//derivative error
+float lEncPrevTime;
+float lEncDt; //difference in time
+float lEncCurrentValue;
+byte lEncOutput;
 
-float  lEncSensorCurrentValue;
-float  lEncError;
-float  lEncDrive;
-
-float rEncD;
-float rEncP;
-float lastrEncError;
-float rEncDF;
-
-float  rEncSensorCurrentValue;
-float  rEncError;
-float  rEncDrive;
+int   rEncRequestedValue;
+float rEncErr;//proportional error
+float rEncPrevErr; //prop error from previous loop
+float rEncInt;//integral error
+float rEncDer;//derivative error
+float rEncPrevTime;
+float rEncDt; //difference in time
+float rEncCurrentValue;
+byte  rEncOutput;
 
 //Gyro PID values
-float gyroD;
-float gyroP;
-float lastGyroError;
-float gyroDF;
-
-float  gyroCurrentValue;
-float  gyroError;
-float  gyroDrive;
+int   gyroRequestedValue;
+float gyroErr;//proportional error
+float gyroPrevErr; //prop error from previous loop
+float gyroInt;//integral error
+float gyroDer;//derivative error
+float gyroPrevTime;
+float gyroDt; //difference in time
+float gyroCurrentValue;
+byte  gyroOutput;
 //#endregion
 
 //#region PID Functions
+ void lEncController()
+ {
+   lEncCurrentValue = SensorValue[lEncPort];
 
+   lEncErr = lEncRequestedValue - lEncCurrentValue;
+   lEncInt = lEncInt + lEncErr;
+   lEncDer = lEncErr - lEncPrevErr;
+   lEncDt = nPgmTime - lEncPrevTime;
+
+   lEncOutput = (lEnc_Kp * lEncErr) + (lEnc_Ki * lEncInt * lEncDt) + (lEnc_Kd * lEncDer / lEncDt);
+
+   lEncPrevErr = lEncErr;
+   lEncPrevTime = nPgmTime;
+ }
+
+ void rEncController()
+ {
+   rEncCurrentValue = SensorValue[rEncPort];
+
+   rEncErr = rEncRequestedValue - rEncCurrentValue;
+   rEncInt = rEncInt + rEncErr;
+   rEncDer = rEncErr - rEncPrevErr;
+   rEncDt = nPgmTime - rEncPrevTime;
+
+   rEncOutput = (rEnc_Kp * rEncErr) + (rEnc_Ki * rEncInt * rEncDt) + (rEnc_Kd * rEncDer / rEncDt);
+
+   rEncPrevErr = rEncErr;
+   rEncPrevTime = nPgmTime;
+ }
+
+ void gyroController()
+ {
+   gyroCurrentValue = SensorValue[gyroPort];
+
+   gyroErr = gyroRequestedValue - gyroCurrentValue;
+   gyroInt = gyroInt + gyroErr;
+   gyroDer = gyroErr - gyroPrevErr;
+   gyroDt = nPgmTime - gyroPrevTime;
+
+   gyroOutput = (gyro_Kp * gyroErr) + (gyro_Ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt);
+
+   gyroPrevErr = gyroErr;
+   gyroPrevTime = nPgmTime;
+ }
 //#endregion
 
 //#region Main Functions
