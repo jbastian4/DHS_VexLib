@@ -27,10 +27,12 @@
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.45
+#define rEnc_Ki 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
 #define gyro_Kp 0.35
+#define gyro_ki 0
 #define gyro_Kd 1
 
 //Drive ramp values
@@ -59,7 +61,7 @@ float lEncErr;//proportional error
 float lEncPrevErr; //prop error from previous loop
 float lEncInt;//integral error
 float lEncDer;//derivative error
-float lEncPrevTime;
+long lEncPrevTime;
 float lEncDt; //difference in time
 float lEncCurrentValue;
 byte lEncOutput;
@@ -69,7 +71,7 @@ float rEncErr;//proportional error
 float rEncPrevErr; //prop error from previous loop
 float rEncInt;//integral error
 float rEncDer;//derivative error
-float rEncPrevTime;
+long rEncPrevTime;
 float rEncDt; //difference in time
 float rEncCurrentValue;
 byte  rEncOutput;
@@ -80,7 +82,7 @@ float gyroErr;//proportional error
 float gyroPrevErr; //prop error from previous loop
 float gyroInt;//integral error
 float gyroDer;//derivative error
-float gyroPrevTime;
+long gyroPrevTime;
 float gyroDt; //difference in time
 float gyroCurrentValue;
 byte  gyroOutput;
@@ -131,15 +133,64 @@ byte  gyroOutput;
    gyroPrevErr = gyroErr;
    gyroPrevTime = nPgmTime;
  }
+
+ task unity2()
+ {
+   sensorValue[rEncPort] = 0;
+   sensorValue[lEncPort] = 0;
+   sensorValue[gyroPort] = 0;
+   while(true)
+   {
+     if (driveMode == 0)
+     {
+       lEncController();
+       rEncController();
+     }
+     else if(driveMode == 1)
+     {
+      gyroController()
+     }
+     else
+     {
+
+     }
+
+   }
+ }
+
 //#endregion
 
 //#region Main Functions
+
+//#endregion
 
 //#region Tasks
 
 //#endregion
 
 
+task driveRamp()
+{
+	while(true)
+	{
+		if (abs(driveLRequestedPower)>abs(driveLPower) && driveLRequestedPower!=0)
+		{
+			if(abs(driveLPower)<20)	driveLPower=20;
+			else										driveLPower = abs(driveLPower) + driveRampingChange;
+			driveLPower = abs(driveLPower) * sgn(driveLRequestedPower);
+		}
+		else	driveLPower=driveLRequestedPower;
 
+		if (abs(driveRRequestedPower)>=abs(driveRPower) && driveRRequestedPower!=0)
+		{
+			if(abs(driveRPower)<11)		driveRPower=11;
+			else											driveRPower = abs(driveRPower) + driveRampingChange;
+			driveRPower = abs(driveRPower) * sgn(driveRRequestedPower);
+		}
+		else	driveRPower=driveRRequestedPower;
+
+		wait1Msec(driveRampingWait);
+	}
+}
 
 #endif
