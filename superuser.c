@@ -1,22 +1,42 @@
 #ifndef superuser
 #define superuser
 
-void setDriveMotors(int lPower, int rPower = -128)
+typedef struct {
+  tMotor motors[10];
+  int numMotors;
+
+  tSensor encoder;
+} motorGroup;
+
+typedef struct {
+
+  float kp 0.8
+  float ki 0
+  float kd 0.03
+
+  int   requestedValue;
+  float err;//proportional error
+  float prevErr; //prop error from previous loop
+  float intg;//integral error
+  float der;//derivative error
+  float prevTime;
+  float dt; //difference in time
+  float currentValue;
+  byte output;
+
+} pidGroup;
+
+void initializeMotorGroup(motorGroup *group, int numMotors, *tMotor motors, tSensors encoder)
 {
-  if (rPower == -128)
-    rPower = lPower;
+  group->numMotors = numMotors;
 
-  //Left drive motors
-  if(lPower <= 127) {
-  motor[ldrive] = lpower; //set left drive motors like this
-  }
-
-  //Right drive motors
-  if(rPower <= 127) {
-  motor[rdrive] = rpower; //set right drive motors like this
-  }
+  for (int i=0; i < group->numMotors; i++)
+		group->motors[i] = motors[i];
 }
 
-
-
-#endif
+void initializePIDGroup(pidGroup *group, float kp, float ki, float kd)
+{
+  group->kp = kp;
+  group->ki = kd;
+  group->kd = kd;
+}
