@@ -23,32 +23,34 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
-#define lEnc_Ki 0
+#define lEnc_Ki 0// if you dont want an i keep it 0
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.45
-#define rEnc_Ki 0
+#define rEnc_Ki 0// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
 #define gyro_Kp 0.35
-#define gyro_ki 0
+#define gyro_ki 0// if you dont want an i keep it 0
 #define gyro_Kd 1
 
 //Drive ramp values
 int rampInterval = 3;
-int lNormalRampSpeed = 10;
-int rNormalRampSpeed = 10;
-int lHighRampSpeed = 25;
-int rHighRampSpeed = 25;
-int deadband = 10;
+int RampingChange = 10;
+int initalRamp = 20;
+int lEncRampBias = 0;
+int REncRampBias = 0;
+int RP;
+int P;
+int lEncPrevPower;
+int rEncPrevPower;
 //#endregion
 
 //#region System Variables
 int driveMode = 0; //0 is drivestraight, 1 is turn
 int direction = 0; //0 is stopped, 1 is forward/right, -1 is backward/left
 int distance = 0; //drivestraight distance or turn angle
-
 int countsToInches(float value) //converts drive encoder counts into inches
 {
   return (value * 360)/(PI * wheelDiameter);
@@ -102,6 +104,8 @@ byte  gyroOutput;
 
    lEncPrevErr = lEncErr;
    lEncPrevTime = nPgmTime;
+   lEncPrevPower = driveRamp(lEncOutput,lEncPrevPower,lEncRampBias);
+   setLDriveMotors(lEncPrevPower);
  }
 
  void rEncController()
@@ -117,6 +121,9 @@ byte  gyroOutput;
 
    rEncPrevErr = rEncErr;
    rEncPrevTime = nPgmTime;
+   rEncPrevPower = driveRamp(rEncOutput,rEncPrevPower,rEncRampBias);
+   setRDriveMotors(rEncPrevPower);
+
  }
 
  void gyroController()
@@ -134,63 +141,60 @@ byte  gyroOutput;
    gyroPrevTime = nPgmTime;
  }
 
- task unity2()
- {
-   sensorValue[rEncPort] = 0;
-   sensorValue[lEncPort] = 0;
-   sensorValue[gyroPort] = 0;
-   while(true)
-   {
-     if (driveMode == 0)
-     {
-       lEncController();
-       rEncController();
-     }
-     else if(driveMode == 1)
-     {
-      gyroController()
-     }
-     else
-     {
-
-     }
-
-   }
- }
-
 //#endregion
 
 //#region Main Functions
-
+int driveRamp(int RequestedPower,int Power,int sidebias=0 )
+{
+  RP = RequestedPower;
+  P = Power;
+		if (abs(RP)>abs(P) && RP!=0)
+		{
+			if(abs(P)<initalRamp)	P=initalRamp;
+			else P = abs(P) + RampingChange + sidebias;
+			P = abs(P) * sgn(RP);
+		}
+		else	P=RP;
+    return P;
+		wait1Msec(rampInterval);
+}
+void setLDriveMotors(int power)
+{
+	motor[lDrivePort1] = power;
+	motor[lDrivePort2] = power;
+}
+void setRDriveMotors(int power)
+{
+	motor[rDrivePort1] = power;
+	motor[rDrivePort2] = power;
+}
 //#endregion
 
 //#region Tasks
-
+task unity2()
+{
+  sensorValue[rEncPort] = 0;
+  sensorValue[lEncPort] = 0;
+  sensorValue[gyroPort] = 0;
+  while(true)
+  {
+    if (driveMode == 0)
+    {
+      lEncController();
+      rEncController();
+    }
+    else if(driveMode == 1)
+    {
+     gyroController()
+    }
+    else
+    {
+     setLDriveMotors(0);
+     setRDriveMotors(0);
+    }
+  }
+}
 //#endregion
 
-
-task driveRamp()
-{
-	while(true)
-	{
-		if (abs(driveLRequestedPower)>abs(driveLPower) && driveLRequestedPower!=0)
-		{
-			if(abs(driveLPower)<20)	driveLPower=20;
-			else										driveLPower = abs(driveLPower) + driveRampingChange;
-			driveLPower = abs(driveLPower) * sgn(driveLRequestedPower);
-		}
-		else	driveLPower=driveLRequestedPower;
-
-		if (abs(driveRRequestedPower)>=abs(driveRPower) && driveRRequestedPower!=0)
-		{
-			if(abs(driveRPower)<11)		driveRPower=11;
-			else											driveRPower = abs(driveRPower) + driveRampingChange;
-			driveRPower = abs(driveRPower) * sgn(driveRRequestedPower);
-		}
-		else	driveRPower=driveRRequestedPower;
-
-		wait1Msec(driveRampingWait);
-	}
-}
 
 #endif
