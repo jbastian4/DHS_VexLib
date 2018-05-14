@@ -144,6 +144,51 @@ byte  gyroOutput;
 //#endregion
 
 //#region Main Functions
+void driveWaity(int distance)
+{
+  int ticks = fabs(countsToInches(distance));
+  while(fabs(SensorValue[lEnc]) <= ticks - stopError){}
+  wait1Msec(stopTime);
+  ticks = 0;
+}
+void unityStraight(int distance, bool waity = false, bool correct = false) //for correction to work properly waity must be true
+{
+  driveMode = 2;
+  if (correct){
+  sensorValue[gyroPort] = 0;}
+  sensorValue[rEncPort] = 0;
+  sensorValue[lEncPort] = 0;
+  int ticks = fabs(countsToInches(distance));
+  lEncRequestedValue = ticks;
+  rEncRequestedValue = ticks;
+  driveMode = 0;
+  if(waity)  {
+    wait1Msec(stopTime);
+    driveWaity(distance);
+  }
+  if (correct){
+    drivemode = 1;
+    turnwaity(0);
+    wait1Msec(stopTime);
+  }
+}
+void turnwaity(int degrees)
+  {
+    while(fabs(SensorValue[gyroPort]) <= fabs(degrees) - 50){}
+    wait1Msec(stopTime);
+  }
+void unityTurn(int degrees,bool waity=false)
+{
+  driveMode = 2;
+  sensorValue[gyroPort] = 0;
+  gyroRequestedValue = degrees;
+  driveMode = 1;
+  if(waity)
+  {
+    turnwaity(degrees);
+  }
+
+}
 int driveRamp(int RequestedPower,int Power,int sidebias=0 )
 {
   RP = RequestedPower;
@@ -185,7 +230,7 @@ task unity2()
     }
     else if(driveMode == 1)
     {
-     gyroController()
+     gyroController();
     }
     else
     {
