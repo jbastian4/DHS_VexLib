@@ -4,16 +4,16 @@
 
 //#region User Variables
 
-//define sensors
+//define Sensors
 #define gyroPort in1
 #define lEncPort dgtl1
 #define rEncPort dgtl3
 
 //define motors
-#define lDrivePort1 port1
-#define lDrivePort2 port2
-#define rDrivePort1 port3
-#define rDrivePort2 port4
+#define lDrivePort1 port3
+#define lDrivePort2 port10
+#define rDrivePort1 port2
+#define rDrivePort2 port1
 
 //miscellaneous values
 #define wheelDiameter 4
@@ -23,16 +23,16 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
-#define lEnc_Ki 0// if you dont want an i keep it 0
+#define lEnc_Ki .001// if you dont want an i keep it 0
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.45
-#define rEnc_Ki 0// if you dont want an i keep it 0
+#define rEnc_Ki .001// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
 #define gyro_Kp 0.35
-#define gyro_ki 0// if you dont want an i keep it 0
+#define gyro_ki .001// if you dont want an i keep it 0
 #define gyro_Kd 1
 
 //Drive ramp values
@@ -40,7 +40,7 @@ int rampInterval = 3;
 int RampingChange = 10;
 int initalRamp = 20;
 int lEncRampBias = 0;
-int REncRampBias = 0;
+int rEncRampBias = 0;
 int RP;
 int P;
 int lEncPrevPower;
@@ -89,6 +89,78 @@ float gyroDt; //difference in time
 float gyroCurrentValue;
 byte  gyroOutput;
 //#endregion
+//#region Main Functions
+void driveWaity(int distance)
+{
+  int ticks = fabs(countsToInches(distance));
+  while(fabs(SensorValue[lEnc]) <= ticks - stopError){}
+  wait1Msec(stopTime);
+  ticks = 0;
+}
+void turnwaity(int degrees)
+  {
+    while(fabs(SensorValue[gyroPort]) <= fabs(degrees) - 50){}
+    wait1Msec(stopTime);
+  }
+void unityStraight(int distance, bool waity = false, bool correct = false) //for correction to work properly waity must be true
+{
+  driveMode = 2;
+  if (correct){
+  SensorValue[gyroPort] = 0;}
+  SensorValue[rEncPort] = 0;
+  SensorValue[lEncPort] = 0;
+  int ticks = fabs(countsToInches(distance));
+  lEncRequestedValue = ticks;
+  rEncRequestedValue = ticks;
+  driveMode = 0;
+  if(waity)  {
+    wait1Msec(stopTime);
+    driveWaity(distance);
+  }
+  if (correct){
+    driveMode = 1;
+    turnwaity(0);
+    wait1Msec(stopTime);
+  }
+}
+
+void unityTurn(int degrees,bool waity=false)
+{
+  driveMode = 2;
+  SensorValue[gyroPort] = 0;
+  gyroRequestedValue = degrees;
+  driveMode = 1;
+  if(waity)
+  {
+    turnwaity(degrees);
+  }
+
+}
+int driveRamp(int RequestedPower,int Power,int sidebias=0 )
+{
+  RP = RequestedPower;
+  P = Power;
+		if (abs(RP)>abs(P) && RP!=0)
+		{
+			if(abs(P)<initalRamp)	P=initalRamp;
+			else P = abs(P) + RampingChange + sidebias;
+			P = abs(P) * sgn(RP);
+		}
+		else	P=RP;
+    return P;
+		wait1Msec(rampInterval);
+}
+void setLDriveMotors(int power)
+{
+	motor[lDrivePort1] = power;
+	motor[lDrivePort2] = power;
+}
+void setRDriveMotors(int power)
+{
+	motor[rDrivePort1] = power;
+	motor[rDrivePort2] = power;
+}
+//#endregion
 
 //#region PID Functions
  void lEncController()
@@ -135,7 +207,7 @@ byte  gyroOutput;
    gyroDer = gyroErr - gyroPrevErr;
    gyroDt = nPgmTime - gyroPrevTime;
 
-   gyroOutput = (gyro_Kp * gyroErr) + (gyro_Ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt);
+   gyroOutput = (gyro_Kp * gyroErr) + (gyro_ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt);
 
    gyroPrevErr = gyroErr;
    gyroPrevTime = nPgmTime;
@@ -143,84 +215,14 @@ byte  gyroOutput;
 
 //#endregion
 
-//#region Main Functions
-void driveWaity(int distance)
-{
-  int ticks = fabs(countsToInches(distance));
-  while(fabs(SensorValue[lEnc]) <= ticks - stopError){}
-  wait1Msec(stopTime);
-  ticks = 0;
-}
-void unityStraight(int distance, bool waity = false, bool correct = false) //for correction to work properly waity must be true
-{
-  driveMode = 2;
-  if (correct){
-  sensorValue[gyroPort] = 0;}
-  sensorValue[rEncPort] = 0;
-  sensorValue[lEncPort] = 0;
-  int ticks = fabs(countsToInches(distance));
-  lEncRequestedValue = ticks;
-  rEncRequestedValue = ticks;
-  driveMode = 0;
-  if(waity)  {
-    wait1Msec(stopTime);
-    driveWaity(distance);
-  }
-  if (correct){
-    drivemode = 1;
-    turnwaity(0);
-    wait1Msec(stopTime);
-  }
-}
-void turnwaity(int degrees)
-  {
-    while(fabs(SensorValue[gyroPort]) <= fabs(degrees) - 50){}
-    wait1Msec(stopTime);
-  }
-void unityTurn(int degrees,bool waity=false)
-{
-  driveMode = 2;
-  sensorValue[gyroPort] = 0;
-  gyroRequestedValue = degrees;
-  driveMode = 1;
-  if(waity)
-  {
-    turnwaity(degrees);
-  }
 
-}
-int driveRamp(int RequestedPower,int Power,int sidebias=0 )
-{
-  RP = RequestedPower;
-  P = Power;
-		if (abs(RP)>abs(P) && RP!=0)
-		{
-			if(abs(P)<initalRamp)	P=initalRamp;
-			else P = abs(P) + RampingChange + sidebias;
-			P = abs(P) * sgn(RP);
-		}
-		else	P=RP;
-    return P;
-		wait1Msec(rampInterval);
-}
-void setLDriveMotors(int power)
-{
-	motor[lDrivePort1] = power;
-	motor[lDrivePort2] = power;
-}
-void setRDriveMotors(int power)
-{
-	motor[rDrivePort1] = power;
-	motor[rDrivePort2] = power;
-}
-//#endregion
 
 //#region Tasks
 task unity2()
 {
-  sensorValue[rEncPort] = 0;
-  sensorValue[lEncPort] = 0;
-  sensorValue[gyroPort] = 0;
+  SensorValue[rEncPort] = 0;
+  SensorValue[lEncPort] = 0;
+  SensorValue[gyroPort] = 0;
   while(true)
   {
     if (driveMode == 0)
