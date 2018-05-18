@@ -10,10 +10,10 @@
 #define rEncPort dgtl3
 
 //define motors
-#define lDrivePort1 port3
-#define lDrivePort2 port10
-#define rDrivePort1 port2
-#define rDrivePort2 port1
+#define lDrivePort1 port8
+#define lDrivePort2 port1
+#define rDrivePort1 port9
+#define rDrivePort2 port10
 
 //miscellaneous values
 #define wheelDiameter 4
@@ -26,14 +26,14 @@
 #define lEnc_Ki .001// if you dont want an i keep it 0
 #define lEnc_Kd 0.03
 
-#define rEnc_Kp 0.45
+#define rEnc_Kp 0.8
 #define rEnc_Ki .001// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
 #define gyro_Kp 0.35
-#define gyro_ki .001// if you dont want an i keep it 0
-#define gyro_Kd 1
+#define gyro_ki .003// if you dont want an i keep it 0
+#define gyro_Kd 8
 
 //Drive ramp values
 int rampInterval = 3;
@@ -66,7 +66,7 @@ float lEncDer;//derivative error
 long lEncPrevTime;
 float lEncDt; //difference in time
 float lEncCurrentValue;
-byte lEncOutput;
+int lEncOutput;
 
 int   rEncRequestedValue;
 float rEncErr;//proportional error
@@ -76,7 +76,7 @@ float rEncDer;//derivative error
 long rEncPrevTime;
 float rEncDt; //difference in time
 float rEncCurrentValue;
-byte  rEncOutput;
+int  rEncOutput;
 
 //Gyro PID values
 int   gyroRequestedValue;
@@ -87,8 +87,9 @@ float gyroDer;//derivative error
 long gyroPrevTime;
 float gyroDt; //difference in time
 float gyroCurrentValue;
-byte  gyroOutput;
+int  gyroOutput;
 //#endregion
+
 //#region Main Functions
 void driveWaity(int distance)
 {
@@ -99,7 +100,7 @@ void driveWaity(int distance)
 }
 void turnwaity(int degrees)
   {
-    while(fabs(SensorValue[gyroPort]) <= fabs(degrees) - 50){}
+    while(fabs(SensorValue[gyroPort]-degrees) > 50){}
     wait1Msec(stopTime);
   }
 void unityStraight(int distance, bool waity = false, bool correct = false) //for correction to work properly waity must be true
@@ -172,14 +173,14 @@ void setRDriveMotors(int power)
    lEncDer = lEncErr - lEncPrevErr;
    lEncDt = nPgmTime - lEncPrevTime;
 
-   lEncOutput = (lEnc_Kp * lEncErr) + (lEnc_Ki * lEncInt * lEncDt) + (lEnc_Kd * lEncDer / lEncDt);
+   lEncOutput = (lEnc_Kp * lEncErr) + (lEnc_Ki * lEncInt * lEncDt) + (lEnc_Kd * lEncDer / lEncDt );
 
    lEncPrevErr = lEncErr;
    lEncPrevTime = nPgmTime;
    lEncPrevPower = driveRamp(lEncOutput,lEncPrevPower,lEncRampBias);
    setLDriveMotors(lEncPrevPower);
  }
-
+// lEncDt
  void rEncController()
  {
    rEncCurrentValue = SensorValue[rEncPort];
@@ -189,7 +190,7 @@ void setRDriveMotors(int power)
    rEncDer = rEncErr - rEncPrevErr;
    rEncDt = nPgmTime - rEncPrevTime;
 
-   rEncOutput = (rEnc_Kp * rEncErr) + (rEnc_Ki * rEncInt * rEncDt) + (rEnc_Kd * rEncDer / rEncDt);
+   rEncOutput = (rEnc_Kp * rEncErr) + (rEnc_Ki * rEncInt * rEncDt) + (rEnc_Kd * rEncDer / rEncDt );
 
    rEncPrevErr = rEncErr;
    rEncPrevTime = nPgmTime;
@@ -197,7 +198,7 @@ void setRDriveMotors(int power)
    setRDriveMotors(rEncPrevPower);
 
  }
-
+// rEncDt
  void gyroController()
  {
    gyroCurrentValue = SensorValue[gyroPort];
@@ -207,28 +208,33 @@ void setRDriveMotors(int power)
    gyroDer = gyroErr - gyroPrevErr;
    gyroDt = nPgmTime - gyroPrevTime;
 
-   gyroOutput = (gyro_Kp * gyroErr) + (gyro_ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt);
+   gyroOutput = (gyro_Kp * gyroErr) + (gyro_ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt );
 
    gyroPrevErr = gyroErr;
    gyroPrevTime = nPgmTime;
+   setLDriveMotors(-gyroOutput);
+   setRDriveMotors(gyroOutput);
  }
-
+// gyroDt
 //#endregion
 
 
-
+int test;
 //#region Tasks
 task unity2()
 {
   SensorValue[rEncPort] = 0;
   SensorValue[lEncPort] = 0;
   SensorValue[gyroPort] = 0;
+  wait1Msec(25);
   while(true)
   {
+  test =  nPgmTime;
     if (driveMode == 0)
     {
       lEncController();
       rEncController();
+      wait1Msec(25);
     }
     else if(driveMode == 1)
     {
