@@ -25,16 +25,12 @@ void pre_auton()
 }
 task autonomous()
 {
+	sensorscale[gyro] = 144;
+	wait1Msec(250);
 	 SensorBias[gyro] = 1849;
 	 wait1Msec(250);
 	startTask (unity2);
-	while(true)
-	{
-		unityTurn(900,true);
-		wait1Msec(1000);
-		unityTurn(-900,true);
-		wait1Msec(1000);
-	}
+	unityStraight(100,true,true);
 
 }
 task usercontrol()

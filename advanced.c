@@ -23,17 +23,17 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
-#define lEnc_Ki .001// if you dont want an i keep it 0
+#define lEnc_Ki 00// if you dont want an i keep it 0
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.8
-#define rEnc_Ki .001// if you dont want an i keep it 0
+#define rEnc_Ki 00// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
-#define gyro_Kp 0.35
-#define gyro_ki .003// if you dont want an i keep it 0
-#define gyro_Kd 8
+float gyro_Kp=0.2
+float gyro_ki=0// if you dont want an i keep it 0
+float gyro_Kd=8
 
 //Drive ramp values
 int rampInterval = 3;
@@ -120,6 +120,7 @@ void unityStraight(int distance, bool waity = false, bool correct = false) //for
   }
   if (correct){
     driveMode = 1;
+      gyroRequestedValue = 0;
     turnwaity(0);
     wait1Msec(stopTime);
   }
@@ -172,6 +173,8 @@ void setRDriveMotors(int power)
    lEncInt = lEncInt + lEncErr;
    lEncDer = lEncErr - lEncPrevErr;
    lEncDt = nPgmTime - lEncPrevTime;
+   if(lEncDt < 1)
+      lEncDt = 1;
 
    lEncOutput = (lEnc_Kp * lEncErr) + (lEnc_Ki * lEncInt * lEncDt) + (lEnc_Kd * lEncDer / lEncDt );
 
@@ -189,6 +192,8 @@ void setRDriveMotors(int power)
    rEncInt = rEncInt + rEncErr;
    rEncDer = rEncErr - rEncPrevErr;
    rEncDt = nPgmTime - rEncPrevTime;
+   if(rEncDt < 1)
+      rEncDt = 1;
 
    rEncOutput = (rEnc_Kp * rEncErr) + (rEnc_Ki * rEncInt * rEncDt) + (rEnc_Kd * rEncDer / rEncDt );
 
@@ -207,6 +212,8 @@ void setRDriveMotors(int power)
    gyroInt = gyroInt + gyroErr;
    gyroDer = gyroErr - gyroPrevErr;
    gyroDt = nPgmTime - gyroPrevTime;
+   if(gyroDt < 1)
+      gyroDt = 1;
 
    gyroOutput = (gyro_Kp * gyroErr) + (gyro_ki * gyroInt * gyroDt) + (gyro_Kd * gyroDer / gyroDt );
 
@@ -239,6 +246,7 @@ task unity2()
     else if(driveMode == 1)
     {
      gyroController();
+      wait1Msec(25);
     }
     else
     {
