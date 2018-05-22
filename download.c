@@ -14,7 +14,7 @@ int debug;
 void pre_auton()
 {
   bStopTasksBetweenModes = true;
- /* SensorType[gyro] = sensorNone;
+  /*SensorType[gyro] = sensorNone;
 	for(int i = 0; i<2000; i++)
 	{
 		cumBias += SensorValue[gyro];
@@ -25,12 +25,14 @@ void pre_auton()
 }
 task autonomous()
 {
-	sensorscale[gyro] = 144;
+	sensorscale[gyro] = 134;
 	wait1Msec(250);
-	 SensorBias[gyro] = 1849;
+	 SensorBias[gyro] = 1851;
 	 wait1Msec(250);
 	startTask (unity2);
-	unityStraight(100,true,true);
+	unityStraight(80,true,true);
+
+	//unityStraight(50,true,true);
 
 }
 task usercontrol()

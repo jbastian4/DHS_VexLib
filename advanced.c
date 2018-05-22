@@ -23,17 +23,17 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
-#define lEnc_Ki 00// if you dont want an i keep it 0
+#define lEnc_Ki 0.000001// if you dont want an i keep it 0
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.8
-#define rEnc_Ki 00// if you dont want an i keep it 0
+#define rEnc_Ki 0.000001// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
-float gyro_Kp=0.2
-float gyro_ki=0// if you dont want an i keep it 0
-float gyro_Kd=8
+float gyro_Kp=0.2;
+float gyro_ki=0.000001;// if you dont want an i keep it 0
+float gyro_Kd=8;
 
 //Drive ramp values
 int rampInterval = 3;
@@ -117,13 +117,14 @@ void unityStraight(int distance, bool waity = false, bool correct = false) //for
   if(waity)  {
     wait1Msec(stopTime);
     driveWaity(distance);
-  }
-  if (correct){
-    driveMode = 1;
-      gyroRequestedValue = 0;
-    turnwaity(0);
-    wait1Msec(stopTime);
-  }
+
+    if (correct){
+      driveMode = 1;
+        gyroRequestedValue = 0;
+      turnwaity(0);
+      wait1Msec(stopTime);
+    }
+}
 }
 
 void unityTurn(int degrees,bool waity=false)
@@ -180,6 +181,10 @@ void setRDriveMotors(int power)
 
    lEncPrevErr = lEncErr;
    lEncPrevTime = nPgmTime;
+   if (fabs(lEncCurrentValue)>fabs(SensorValue[rEncPort]))
+   {
+     lEncOutput = lEncOutput-((fabs(lEncCurrentValue) - fabs(SensorValue[rEncPort]))/2*sgn(lEncCurrentValue));
+   }
    lEncPrevPower = driveRamp(lEncOutput,lEncPrevPower,lEncRampBias);
    setLDriveMotors(lEncPrevPower);
  }
@@ -199,6 +204,10 @@ void setRDriveMotors(int power)
 
    rEncPrevErr = rEncErr;
    rEncPrevTime = nPgmTime;
+   if (fabs(rEncCurrentValue)>fabs(SensorValue[lEncPort]))
+   {
+     rEncOutput = rEncOutput-((fabs(rEncCurrentValue) - fabs(SensorValue[lEncPort]))/2*sgn(rEncCurrentValue));
+   }
    rEncPrevPower = driveRamp(rEncOutput,rEncPrevPower,rEncRampBias);
    setRDriveMotors(rEncPrevPower);
 
