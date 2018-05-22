@@ -15,16 +15,16 @@
 
 //Encoder PID Values
 #define lEnc_Kp 0.8
-#define lEnc_Ki .001// if you dont want an i keep it 0
+#define lEnc_Ki .000001// if you dont want an i keep it 0, otherwise still very small
 #define lEnc_Kd 0.03
 
 #define rEnc_Kp 0.45
-#define rEnc_Ki .001// if you dont want an i keep it 0
+#define rEnc_Ki .000001// if you dont want an i keep it 0
 #define rEnc_Kd 0.03
 
 //Gyro PID Values
 #define gyro_Kp 0.35
-#define gyro_ki .001// if you dont want an i keep it 0
+#define gyro_Ki .000001// if you dont want an i keep it 0
 #define gyro_Kd 1
 
 string driveMode = "None";
@@ -37,7 +37,7 @@ typedef struct {
   tMotor motors[10];
   int numMotors;
 
-  bool ramping = false;
+  bool ramping;
   byte currentPower;
   int rampInterval;
   int normalRampSpeed;
@@ -64,10 +64,16 @@ typedef struct {
 
 } pidGroup;
 
+	motorGroup lDrive;
+  motorGroup rDrive;
+  pidGroup lDrivePID;
+  pidGroup rDrivePID;
+  pidGroup gyroPID;
+
 //#endregion
 
 //#region Initialization Functions
-void initializeMotorGroup(motorGroup *group, int numMotors, *tMotor motors)
+void initializeMotorGroup(motorGroup *group, int numMotors, tMotor *motors)
 {
   group->numMotors = numMotors;
 
@@ -89,9 +95,33 @@ void attachSensor(pidGroup *PID, tSensors sensor)
 
 void initializePIDGroup(pidGroup *pid, float kp, float ki, float kd)
 {
-  group->kp = kp;
-  group->ki = kd;
-  group->kd = kd;
+  pid->kp = kp;
+  pid->ki = kd;
+  pid->kd = kd;
+}
+
+void initializeAll()
+{
+
+  #define NUM_LDRIVE_MOTORS 2
+	tMotor lDriveMotors[NUM_LDRIVE_MOTORS] = { port1, port2};
+
+  #define NUM_RDRIVE_MOTORS 2
+	tMotor rDriveMotors[NUM_RDRIVE_MOTORS] = { port3, port4};
+
+  initializeMotorGroup(lDrive, NUM_LDRIVE_MOTORS, lDriveMotors);
+  initializeMotorGroup(rDrive, NUM_RDRIVE_MOTORS, rDriveMotors);
+
+  initializePIDGroup(lDrivePID, lEnc_Kp, lEnc_Ki, lEnc_Kd);
+  initializePIDGroup(rDrivePID, rEnc_Kp, rEnc_Ki, rEnc_Kd);
+  initializePIDGroup(gyroPID, gyro_Kp, gyro_Ki, gyro_Kd);
+
+  attachSensor(lDrivePID, lEncPort);
+  attachSensor(rDrivePID, rEncPort);
+  attachSensor(gyroPID, gyroPort);
+
+  configureRamping(lDrive, 7, 20);
+  configureRamping(rDrive, 7, 20);
 }
 
 //#endregion
@@ -115,7 +145,7 @@ byte pid(pidGroup *pid)
   pid->currentValue = SensorValue[pid->sensor];
 
   pid->err = pid->requestedValue - pid->currentValue;
-  pid->intg = pid->intg + gyroErr;
+  pid->intg = pid->intg + pid->err;
   pid->der = pid->err - pid->prevErr;
   pid->dt = nPgmTime - pid->prevTime;
   if(pid->dt < 1)
@@ -127,16 +157,16 @@ byte pid(pidGroup *pid)
   pid->prevTime = nPgmTime;
 }
 
-void runPIDLoop(motorGroup *group, pidGroup *pid)
+void runPIDLoop(motorGroup *group, pidGroup *pidG)
 {
-  byte desiredPower = pid(pid);
+  byte desiredPower = pid(pidG);
 
   if(group->ramping)
   {
     if (abs(desiredPower)>abs(group->currentPower) && desiredPower!=0)
     {
       if(abs(group->currentPower) < group->highRampSpeed)
-        desiredPower = highRampSpeed;
+        desiredPower = group->highRampSpeed;
       else	desiredPower = abs(group->currentPower) + group->normalRampSpeed;
       group->currentPower = abs(group->currentPower) * sgn(desiredPower);
     }
@@ -144,40 +174,6 @@ void runPIDLoop(motorGroup *group, pidGroup *pid)
   }
 
   setMotors(group, desiredPower);
-}
-
-//#endregion
-
-//#region Initialization
-
-void initializeAll()
-{
-  motorGroup lDrive;
-  motorGroup rDrive;
-  pidGroup lDrivePID;
-  pidGroup rDrivePID;
-  pidGroup gyroPID;
-  driveGroup Drive;
-
-  #define NUM_LDRIVE_MOTORS 2
-	tMotor lDriveMotors[NUM_LDRIVE_MOTORS] = { port1, port2};
-
-  #define NUM_RDRIVE_MOTORS 2
-	tMotor rDriveMotors[NUM_RDRIVE_MOTORS] = { port3, port4};
-
-  initializeMotorGroup(lDrive, NUM_LDRIVE_MOTORS, lDriveMotors);
-  initializeMotorGroup(rDrive, NUM_RDRIVE_MOTORS, rDriveMotors);
-
-  initializePIDGroup(lDrivePID, lEnc_Kp, lEnc_Ki, lEnc_Kd);
-  initializePIDGroup(rDrivePID, rEnc_Kp, rEnc_Ki, rEnc_Kd);
-  initializePIDGroup(gyroPID, gyro_Kp, gyro_Ki, gyro_Kd);
-
-  attachSensor(lDrivePID, lEncPort);
-  attachSensor(rDrivePID, rEncPort);
-  attachSensor(gyroPID, gyroPort);
-
-  configureRamping(lDrive, 7, 20);
-  configureRamping(rDrive, 7, 20);
 }
 
 //#endregion
@@ -211,15 +207,15 @@ void unityStraight(int distance, bool waity = false, bool correct = false) //for
   SensorValue[rEncPort] = 0;
   SensorValue[lEncPort] = 0;
   int ticks = fabs(inchesToCounts(distance));
-  Drive.leftPID.requestedValue = ticks;
-  Drive.rightPID.requestedValue = ticks;
+  pidRequest(lDrivePID, ticks);
+  pidRequest(rDrivePID, ticks);
   driveMode = "Straight";
   if(waity){
     driveWaity(distance);
     if (correct){
       driveMode = "Turn";
-      Drive.gyroPID.requestedValue = 0;
-      turnwaity(0);
+      pidRequest(gyroPID, 0);
+      turnWaity(0);
       wait1Msec(stopTime);
     }
   }
@@ -229,10 +225,10 @@ void unityTurn(int degrees, bool waity = false)
 {
   driveMode = "None";
   SensorValue[gyroPort] = 0;
-  Drive.gyroPID.requestedValue = degrees;
+  pidRequest(gyroPID, degrees);
   driveMode = "Turn";
   if(waity)
-    turnwaity(degrees);
+    turnWaity(degrees);
 }
 
 task unity3()
@@ -248,10 +244,17 @@ task unity3()
     }
     else if(driveMode == "Turn")
     {
-      setMotors(lDrive, pid(gyroPID))
-      setMotors(rDrive, -pid(gyroPID))
+      setMotors(lDrive, pid(gyroPID));
+      setMotors(rDrive, -pid(gyroPID));
+    }
+    else
+    {
+      setMotors(lDrive, 0);
+      setMotors(rDrive, 0);
     }
   }
 }
 
 //#endregion
+
+#endif
