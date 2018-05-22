@@ -70,11 +70,15 @@ typedef struct {
   pidGroup rDrivePID;
   pidGroup gyroPID;
 
+  motorGroup motorNone;
+  pidGroup pidNone;
+
 //#endregion
 
 //#region Initialization Functions
-void initializeMotorGroup(motorGroup *group, int numMotors, tMotor *motors)
+void initializeMotorGroup(motorGroup *group, int numMotors, tMotor *motors, bool ramp = false)
 {
+  group->ramping = false;
   group->numMotors = numMotors;
 
   for (int i=0; i < group->numMotors; i++)
@@ -109,8 +113,8 @@ void initializeAll()
   #define NUM_RDRIVE_MOTORS 2
 	tMotor rDriveMotors[NUM_RDRIVE_MOTORS] = { port3, port4};
 
-  initializeMotorGroup(lDrive, NUM_LDRIVE_MOTORS, lDriveMotors);
-  initializeMotorGroup(rDrive, NUM_RDRIVE_MOTORS, rDriveMotors);
+  initializeMotorGroup(lDrive, NUM_LDRIVE_MOTORS, lDriveMotors, true);
+  initializeMotorGroup(rDrive, NUM_RDRIVE_MOTORS, rDriveMotors, true);
 
   initializePIDGroup(lDrivePID, lEnc_Kp, lEnc_Ki, lEnc_Kd);
   initializePIDGroup(rDrivePID, rEnc_Kp, rEnc_Ki, rEnc_Kd);
@@ -157,9 +161,15 @@ byte pid(pidGroup *pid)
   pid->prevTime = nPgmTime;
 }
 
-void runPIDLoop(motorGroup *group, pidGroup *pidG)
+void runPIDLoop(motorGroup *group, pidGroup *pidG, bool driveCorrection, pidGroup *otherPID = pidNone)
 {
   byte desiredPower = pid(pidG);
+
+  if(driveCorrection)
+  {
+    if (fabs(pidG->currentValue)>fabs(SensorValue[otherPID->sensor]))
+      desiredPower = desiredPower-((fabs(pidG->currentValue) - fabs(SensorValue[otherPID->sensor]))/2*sgn(desiredPower));
+  }
 
   if(group->ramping)
   {
@@ -239,8 +249,8 @@ task unity3()
     if(driveMode == "None") {}
     else if(driveMode == "Straight")
     {
-      runPIDLoop(lDrive, lDrivePID);
-      runPIDLoop(rDrive, rDrivePID);
+      runPIDLoop(lDrive, lDrivePID, true, rDrivePID);
+      runPIDLoop(rDrive, rDrivePID, true, lDrivePID);
     }
     else if(driveMode == "Turn")
     {
